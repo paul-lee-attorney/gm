@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/paul-lee-attorney/fabric-gm-2.1/gm/sm2"
+	"github.com/paul-lee-attorney/gm/sm2"
 )
 
 func TestX500Name(t *testing.T) {

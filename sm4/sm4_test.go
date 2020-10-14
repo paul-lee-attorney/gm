@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/paul-lee-attorney/fabric-gm-2.1/gm/util"
+	"github.com/paul-lee-attorney/gm/util"
 )
 
 type sm4CbcTestData struct {

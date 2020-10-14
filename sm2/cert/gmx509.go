@@ -16,9 +16,9 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"github.com/paul-lee-attorney/fabric-gm-2.1/gm/cryptobyte"
-	cryptobyte_asn1 "github.com/paul-lee-attorney/fabric-gm-2.1/gm/cryptobyte/asn1"
-	"github.com/paul-lee-attorney/fabric-gm-2.1/gm/sm2"
+	"github.com/paul-lee-attorney/gm/cryptobyte"
+	cryptobyte_asn1 "github.com/paul-lee-attorney/gm/cryptobyte/asn1"
+	"github.com/paul-lee-attorney/gm/sm2"
 )
 
 var (

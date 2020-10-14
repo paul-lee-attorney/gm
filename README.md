@@ -1,4 +1,4 @@
-# 国密SM3杂凑算法的GO语言实现
+# 国密SM2(椭圆曲线公钥密码算法)、SM3(杂凑算法)、SM4(分组密码算法)的GO语言实现
 
 ## 1. 原创代码：https://github.com/ZZMarquis/gm
 
