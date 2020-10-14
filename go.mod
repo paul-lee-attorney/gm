@@ -1,3 +1,3 @@
-module github.com/paul-lee-attorney/fabric-gm-2.1/gm
+module github.com/paul-lee-attorney/gm
 
 go 1.14
