@@ -17,8 +17,10 @@ import (
 	"unicode/utf8"
 
 	"github.com/paul-lee-attorney/gm/cryptobyte"
-	cryptobyte_asn1 "github.com/paul-lee-attorney/gm/cryptobyte/asn1"
+
 	"github.com/paul-lee-attorney/gm/sm2"
+
+	cryptobyte_asn1 "github.com/paul-lee-attorney/gm/cryptobyte/asn1"
 )
 
 var (

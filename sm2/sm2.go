@@ -480,9 +480,9 @@ func MarshalCipher(in []byte, cipherTextType CipherTextType) ([]byte, error) {
 	c1y := make([]byte, byteLen)
 
 	// 将in[]按C1,C2,C3长度进行拆分
-	c2Len := len(in) - (1 + byteLen*2) - sm3.DigestLength
+	c2Len := len(in) - (1 + byteLen*2) - sm3.Size
 	c2 := make([]byte, c2Len)
-	c3 := make([]byte, sm3.DigestLength)
+	c3 := make([]byte, sm3.Size)
 	pos := 1
 
 	// 拆分获取c1x, c1y
@@ -497,15 +497,15 @@ func MarshalCipher(in []byte, cipherTextType CipherTextType) ([]byte, error) {
 	if cipherTextType == C1C2C3 {
 		copy(c2, in[pos:pos+c2Len])
 		pos += c2Len
-		copy(c3, in[pos:pos+sm3.DigestLength])
+		copy(c3, in[pos:pos+sm3.Size])
 		result, err := asn1.Marshal(sm2CipherC1C2C3{nc1x, nc1y, c2, c3})
 		if err != nil {
 			return nil, err
 		}
 		return result, nil
 	} else if cipherTextType == C1C3C2 {
-		copy(c3, in[pos:pos+sm3.DigestLength])
-		pos += sm3.DigestLength
+		copy(c3, in[pos:pos+sm3.Size])
+		pos += sm3.Size
 		copy(c2, in[pos:pos+c2Len])
 		result, err := asn1.Marshal(sm2CipherC1C3C2{nc1x, nc1y, c3, c2})
 		if err != nil {
