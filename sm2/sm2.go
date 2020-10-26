@@ -15,6 +15,7 @@ import (
 	"hash"
 	"io"
 	"math/big"
+	"sync"
 
 	"github.com/paul-lee-attorney/gm/sm3"
 	"github.com/paul-lee-attorney/gm/util"
@@ -53,6 +54,8 @@ var (
 // sm2P256V1 代表国密SM2推荐参数定义的椭圆曲线
 var sm2P256V1 P256V1Curve
 
+var initonce sync.Once
+
 // P256V1Curve 代表国密SM2推荐参数定义的椭圆曲线:
 // (1) 素数域256位椭圆曲线
 // (2) 曲线方程为 Y^2 = X^3 + aX + b
@@ -77,8 +80,9 @@ type PublicKey struct {
 // (1) D代表公钥P点相对于基点G的倍数
 // (2) Curve 为SM2算法的椭圆曲线
 type PrivateKey struct {
-	D     *big.Int
-	Curve P256V1Curve
+	D *big.Int
+	PublicKey
+	// Curve P256V1Curve
 }
 
 // sm2Signature 代表SM2算法的数字签名类。
@@ -100,7 +104,7 @@ type sm2CipherC1C2C3 struct {
 	C3   []byte
 }
 
-// init() 初始化国密SM2推荐参数计算得出的椭圆曲线。
+// init 初始化国密SM2推荐参数计算得出的椭圆曲线。
 func init() {
 	initSm2P256V1()
 }
@@ -128,6 +132,7 @@ func initSm2P256V1() {
 
 // GetSm2P256V1 为获取国密SM2椭圆曲线定义的函数。
 func GetSm2P256V1() P256V1Curve {
+	initonce.Do(init)
 	return sm2P256V1
 }
 
@@ -135,19 +140,19 @@ func GetSm2P256V1() P256V1Curve {
 // (1) 利用GO语言标准包crypto/rand生成随机数rand;
 // (2) 将SM2推荐曲线参数和随机数rand输入GO语言标准包crypto/elliptic的公钥对生成方法GenerateKey()，生成密钥对核心参数(priv, x, y);
 // (3) 根据PublicKey类和PrivateKey类的定义生成公钥和私钥的实例，并将上述核心参数赋值给实例各相应属性以完成初始化.
-func GenerateKey(rand io.Reader) (*PrivateKey, *PublicKey, error) {
+func GenerateKey(rand io.Reader) (*PrivateKey, error) {
 	priv, x, y, err := elliptic.GenerateKey(sm2P256V1, rand)
 	if err != nil {
 		return nil, nil, err
 	}
 	privateKey := new(PrivateKey)
-	privateKey.Curve = sm2P256V1
+	privateKey.PublicKey.Curve = sm2P256V1
 	privateKey.D = new(big.Int).SetBytes(priv)
-	publicKey := new(PublicKey)
-	publicKey.Curve = sm2P256V1
-	publicKey.X = x
-	publicKey.Y = y
-	return privateKey, publicKey, nil
+	// publicKey := new(PublicKey)
+	// publicKey.Curve = sm2P256V1
+	privateKey.PublicKey.X = x
+	privateKey.PublicKey.Y = y
+	return privateKey, nil
 }
 
 // RawBytesToPublicKey 将字节数组形式的原始格式数据转化为SM2公钥的方法:

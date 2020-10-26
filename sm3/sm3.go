@@ -51,7 +51,7 @@ func New() hash.Hash {
 	return digest
 }
 
-// Sum() 为GO语言hash标准接口类中Sum()方法的实现。
+// Sum 为GO语言hash标准接口类中Sum()方法的实现。
 // 其功能是将输入消息与其哈希值连接在一个字节数组中，
 // 方便数字指纹核实、数字签名等应用中同时获得输入消息和其哈希值。
 func (digest *digest) Sum(b []byte) []byte {
@@ -166,10 +166,10 @@ func (digest *digest) finish() {
 		digest.Write([]byte{0})
 	}
 
-	// 完成“填充”步骤，制作成最后的长度为512位整数倍的数据组。
+	// 调用processLength()方法, 完成“填充”步骤，制作成最后的长度为512位整数倍的数据分组。
 	digest.processLength(bitLength)
 
-	// 就“填充”完成后的尾部数据，进行国标5.3部分的迭代、压缩运算。
+	// 调用processBlock()方法, 就“填充”完成后的尾部数据，进行国标5.3部分的迭代、压缩运算。
 	digest.processBlock()
 }
 
@@ -264,10 +264,9 @@ func (digest *digest) processBlock() {
 	digest.endOfInWords = 0
 }
 
-// processWord() 为写入过程处理“字”存储器的方法：
+// processWord() 为写入过程中凑“字”长的方法：
 // (1) 将输入的字节数据，以4字节位单位，写入inWords[];
-// (2) 若
-
+// (2) 每当写入消息字长达到16个字，即512字节，则调用一次processBlock()方法.
 func (digest *digest) processWord(in []byte, inOff int32) {
 	n := binary.BigEndian.Uint32(in[inOff : inOff+4])
 
@@ -323,17 +322,17 @@ func ff0(x uint32, y uint32, z uint32) uint32 {
 	return x ^ y ^ z
 }
 
-// ff0() 为国标4.3条规定的(16 <= j <= 63)条件下的布尔函数FF(j)。
+// ff1() 为国标4.3条规定的(16 <= j <= 63)条件下的布尔函数FF(j)。
 func ff1(x uint32, y uint32, z uint32) uint32 {
 	return (x & y) | (x & z) | (y & z)
 }
 
-// ff0() 为国标4.3条规定的(0 <= j <= 15)条件下的布尔函数FF(j)。
+// gg0() 为国标4.3条规定的(0 <= j <= 15)条件下的布尔函数GG(j)。
 func gg0(x uint32, y uint32, z uint32) uint32 {
 	return x ^ y ^ z
 }
 
-// ff0() 为国标4.3条规定的(16 <= j <= 63)条件下的布尔函数FF(j)。
+// gg1() 为国标4.3条规定的(16 <= j <= 63)条件下的布尔函数GG(j)。
 func gg1(x uint32, y uint32, z uint32) uint32 {
 	return (x & y) | ((^x) & z)
 }
