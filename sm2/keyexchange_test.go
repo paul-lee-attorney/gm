@@ -15,14 +15,14 @@ var (
 )
 
 func TestSM2KeyExchange(t *testing.T) {
-	initiatorStaticPriv, initiatorStaticPub, _ := GenerateKey(rand.Reader)
-	initiatorEphemeralPriv, initiatorEphemeralPub, _ := GenerateKey(rand.Reader)
-	responderStaticPriv, responderStaticPub, _ := GenerateKey(rand.Reader)
-	responderEphemeralPriv, responderEphemeralPub, _ := GenerateKey(rand.Reader)
+	initiatorStaticPriv, _ := GenerateKey(rand.Reader)
+	initiatorEphemeralPriv, _ := GenerateKey(rand.Reader)
+	responderStaticPriv, _ := GenerateKey(rand.Reader)
+	responderEphemeralPriv, _ := GenerateKey(rand.Reader)
 
 	responderResult, err := CalculateKeyWithConfirmation(false, KeyBits, nil,
 		responderStaticPriv, responderEphemeralPriv, responderId,
-		initiatorStaticPub, initiatorEphemeralPub, initiatorId)
+		initiatorId)
 	if err != nil {
 		t.Error(err.Error())
 		return
@@ -30,7 +30,7 @@ func TestSM2KeyExchange(t *testing.T) {
 
 	initiatorResult, err := CalculateKeyWithConfirmation(true, KeyBits, responderResult.S1,
 		initiatorStaticPriv, initiatorEphemeralPriv, initiatorId,
-		responderStaticPub, responderEphemeralPub, responderId)
+		responderId)
 	if err != nil {
 		t.Error(err.Error())
 		return

@@ -132,7 +132,7 @@ func initSm2P256V1() {
 
 // GetSm2P256V1 为获取国密SM2椭圆曲线定义的函数。
 func GetSm2P256V1() P256V1Curve {
-	initonce.Do(init)
+	initonce.Do(initSm2P256V1)
 	return sm2P256V1
 }
 
@@ -143,7 +143,7 @@ func GetSm2P256V1() P256V1Curve {
 func GenerateKey(rand io.Reader) (*PrivateKey, error) {
 	priv, x, y, err := elliptic.GenerateKey(sm2P256V1, rand)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	privateKey := new(PrivateKey)
 	privateKey.PublicKey.Curve = sm2P256V1

@@ -19,7 +19,7 @@ func TestGetSm2P256V1(t *testing.T) {
 }
 
 func TestGenerateKey(t *testing.T) {
-	priv, pub, err := GenerateKey(rand.Reader)
+	priv, err := GenerateKey(rand.Reader)
 	if err != nil {
 		t.Error(err.Error())
 		return
@@ -38,7 +38,7 @@ func TestGenerateKey(t *testing.T) {
 
 func TestEncryptDecrypt_C1C2C3(t *testing.T) {
 	src := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
-	priv, pub, err := GenerateKey(rand.Reader)
+	priv, err := GenerateKey(rand.Reader)
 	if err != nil {
 		t.Error(err.Error())
 		return
@@ -70,7 +70,7 @@ func TestEncryptDecrypt_C1C2C3(t *testing.T) {
 
 func TestEncryptDecrypt_C1C3C2(t *testing.T) {
 	src := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
-	priv, pub, err := GenerateKey(rand.Reader)
+	priv, err := GenerateKey(rand.Reader)
 	if err != nil {
 		t.Error(err.Error())
 		return
@@ -102,7 +102,7 @@ func TestEncryptDecrypt_C1C3C2(t *testing.T) {
 
 func TestCipherDerEncode_C1C2C3(t *testing.T) {
 	src := []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10}
-	priv, pub, err := GenerateKey(rand.Reader)
+	priv, err := GenerateKey(rand.Reader)
 	if err != nil {
 		t.Error(err.Error())
 		return

@@ -52,7 +52,7 @@ func TestSignVerifyLoop(t *testing.T) {
 
 func TestSignVerifyLoop2(t *testing.T) {
 	for i := 0; i < loopCount; i++ {
-		priv, pub, err := GenerateKey(rand.Reader)
+		priv, err := GenerateKey(rand.Reader)
 		if err != nil {
 			t.Error(err.Error())
 			break
@@ -76,7 +76,7 @@ func TestSignVerifyLoop2(t *testing.T) {
 }
 
 func TestSignVerifyLoop3(t *testing.T) {
-	priv, pub, err := GenerateKey(rand.Reader)
+	priv, err := GenerateKey(rand.Reader)
 	if err != nil {
 		t.Error(err.Error())
 		return
