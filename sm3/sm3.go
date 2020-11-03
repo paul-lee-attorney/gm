@@ -109,7 +109,7 @@ func (digest *digest) Reset() {
 // 鉴于输入消息写入时可能为多次、持续的过程，所以，Write()方法并没有将“填充”步骤考虑在内，
 // 而是将“填充”步骤放到最后，在收尾函数finish()方法中再实现输入消息的“填充”步骤。
 func (digest *digest) Write(p []byte) (n int, err error) {
-	_ = p[0]
+	_ = p[0] // 若写入消息为nil，直接产生panic
 	inLen := len(p)
 
 	i := 0
