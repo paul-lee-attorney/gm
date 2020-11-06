@@ -105,7 +105,7 @@ func kdfForExch(digest hash.Hash, ux, uy *big.Int, za, zb []byte, keyBits int) [
 		tmp := digest.Sum(nil) // len(tmp) == bufSize
 		copy(buf[:bufSize], tmp[:bufSize])
 
-		if rvlen <= bufSize {
+		if rvLen <= bufSize {
 			copyLen := rvLen - off // 仅适用于 rvlen <= bufSize 情形
 			copy(rv[off:off+copyLen], buf[:copyLen])
 			off += copyLen

@@ -149,7 +149,7 @@ func GenerateKey(rand io.Reader) (*PrivateKey, error) {
 	privateKey.PublicKey.Curve = sm2P256V1
 	privateKey.D = new(big.Int).SetBytes(priv)
 	// publicKey := new(PublicKey)
-	// publicKey.Curve = sm2P256V1
+	// publicKey.Curve = curve
 	privateKey.PublicKey.X = x
 	privateKey.PublicKey.Y = y
 	return privateKey, nil
@@ -634,6 +634,11 @@ func MarshalSign(r, s *big.Int) ([]byte, error) {
 
 // UnmarshalSign 为SM2将签名对象反序列化函数，即将符合ASN.1标准DER编码规则的字节串反序列化为SM2签名对象。
 func UnmarshalSign(sign []byte) (r, s *big.Int, err error) {
+
+	if len(sign) == 0 {
+		return nil, nil, errors.New("signature shall not be nil")
+	}
+
 	sm2Sign := new(sm2Signature)
 	_, err = asn1.Unmarshal(sign, sm2Sign)
 	if err != nil {
@@ -718,13 +723,13 @@ func Sign(priv *PrivateKey, userID []byte, in []byte) ([]byte, error) {
 // (5) 调用elliptic标准包计算曲线上点(x1', y1') = [s']G + [t]PA, 并校验是否为无穷远点O(其实没必要) (国标2-7.1.B5)
 // (6) 计算R = (e' + x1') mod n
 // (7) 若 R = r' 则通过校验
-func VerifyByRS(pub *PublicKey, userID []byte, src []byte, r, s *big.Int) bool {
+func VerifyByRS(pub *PublicKey, userID []byte, src []byte, r, s *big.Int) (bool, error) {
 	intOne := new(big.Int).SetInt64(1)
 	if r.Cmp(intOne) == -1 || r.Cmp(pub.Curve.N) >= 0 {
-		return false
+		return false, errors.New("r is not in the allowed area")
 	}
 	if s.Cmp(intOne) == -1 || s.Cmp(pub.Curve.N) >= 0 {
-		return false
+		return false, errors.New("s is not in the allowed area")
 	}
 
 	digest := sm3.New()
@@ -737,28 +742,32 @@ func VerifyByRS(pub *PublicKey, userID []byte, src []byte, r, s *big.Int) bool {
 	t := util.Add(r, s)
 	t = util.Mod(t, pub.Curve.N)
 	if t.Cmp(intZero) == 0 {
-		return false
+		return false, errors.New("t is equal to zero")
 	}
 
 	sgx, sgy := pub.Curve.ScalarBaseMult(s.Bytes())
 	tpx, tpy := pub.Curve.ScalarMult(pub.X, pub.Y, t.Bytes())
 	x, y := pub.Curve.Add(sgx, sgy, tpx, tpy)
 	if util.IsEcPointInfinity(x, y) {
-		return false
+		return false, errors.New("got infinity point")
 	}
 
 	expectedR := util.Add(e, x)
 	expectedR = util.Mod(expectedR, pub.Curve.N)
-	return expectedR.Cmp(r) == 0
+	return expectedR.Cmp(r) == 0, nil
 }
 
 // Verify 为SM2封装后的签名验证函数,
 // 输入参数为签名人的公钥、ID、原始消息和DER编码字节数组形式的签名(r, s),
 // 反序列化签名后调用核心算法函数VerifyByRS校验签名。
-func Verify(pub *PublicKey, userID []byte, src []byte, sign []byte) bool {
+func Verify(pub *PublicKey, userID []byte, src []byte, sign []byte) (bool, error) {
+
+	if len(sign) == 0 || sign == nil {
+		return false, errors.New("sign shall not be nil")
+	}
 	r, s, err := UnmarshalSign(sign)
 	if err != nil {
-		return false
+		return false, err
 	}
 
 	return VerifyByRS(pub, userID, src, r, s)
