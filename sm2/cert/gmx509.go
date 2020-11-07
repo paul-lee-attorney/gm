@@ -24,7 +24,9 @@ import (
 )
 
 var (
-	oidSM2P256V1           = asn1.ObjectIdentifier{1, 2, 156, 10197, 1, 301}
+	// SM2算法oid，详见GMT 0015-2012 附件
+	oidSM2P256V1 = asn1.ObjectIdentifier{1, 2, 156, 10197, 1, 301}
+	// SM3WithSM2Encryption 详见GMT 0015-2012 附件
 	oidSignatureSM3WithSM2 = asn1.ObjectIdentifier{1, 2, 156, 10197, 1, 501}
 
 	oidPublicKeyECDSA = asn1.ObjectIdentifier{1, 2, 840, 10045, 2, 1}
@@ -53,12 +55,14 @@ const (
 	nameTypeIP    = 7
 )
 
+// 与x509标准库相同
 type publicKeyInfo struct {
 	Raw       asn1.RawContent
 	Algorithm pkix.AlgorithmIdentifier
 	PublicKey asn1.BitString
 }
 
+// 与x509标准库相同
 type tbsCertificateRequest struct {
 	Raw           asn1.RawContent
 	Version       int
@@ -67,6 +71,7 @@ type tbsCertificateRequest struct {
 	RawAttributes []asn1.RawValue `asn1:"tag:0"`
 }
 
+// 与x509标准库相同
 type certificateRequest struct {
 	Raw                asn1.RawContent
 	TBSCSR             tbsCertificateRequest
@@ -74,8 +79,16 @@ type certificateRequest struct {
 	SignatureValue     asn1.BitString
 }
 
+// CreateCertificateRequest 生成证书签发请求。
+// 与x509标准库相比较，输入参数为SM2私钥参数；
+// 标准库则是可实现crypto.Signer接口的任何算法的私钥。
+// 此外，SM2签名算法本身内建了哈希步骤，因此输入明文消息即可；
+// 其他不对称加密算法则需要事先进行哈希运算，然后再将哈希值输入不对称加密算法。
 func CreateCertificateRequest(template *x509.CertificateRequest, pub *sm2.PublicKey,
 	pri *sm2.PrivateKey, userId []byte) (csr []byte, err error) {
+
+	// 与标准库比较，不再需要根据私钥推导公钥、再根据公钥类型推算哈希函数和不对称加密算法OID等参数
+
 	var publicKeyBytes []byte
 	var publicKeyAlgorithm pkix.AlgorithmIdentifier
 	publicKeyBytes, publicKeyAlgorithm, err = marshalPublicKey(pub)
@@ -83,6 +96,7 @@ func CreateCertificateRequest(template *x509.CertificateRequest, pub *sm2.Public
 		return nil, err
 	}
 
+	// 序列化证书申请人的主体别名(SAN)信息
 	var extensions []pkix.Extension
 	if (len(template.DNSNames) > 0 || len(template.EmailAddresses) > 0 || len(template.IPAddresses) > 0 || len(template.URIs) > 0) &&
 		!oidInExtensions(oidExtensionSubjectAltName, template.ExtraExtensions) {
@@ -91,11 +105,14 @@ func CreateCertificateRequest(template *x509.CertificateRequest, pub *sm2.Public
 			return nil, err
 		}
 
+		// 将SAN信息存入证书扩展信息变量
 		extensions = append(extensions, pkix.Extension{
 			Id:    oidExtensionSubjectAltName,
 			Value: sanBytes,
 		})
 	}
+
+	// 将模板中其他扩展信息存入证书扩展信息变量
 	extensions = append(extensions, template.ExtraExtensions...)
 
 	var attributes []pkix.AttributeTypeAndValueSET
@@ -169,6 +186,7 @@ func CreateCertificateRequest(template *x509.CertificateRequest, pub *sm2.Public
 		return
 	}
 
+	// 结构与标准库完全一致
 	tbsCSR := tbsCertificateRequest{
 		Version: 0, // PKCS #10, RFC 2986
 		Subject: asn1.RawValue{FullBytes: asn1Subject},
@@ -188,12 +206,14 @@ func CreateCertificateRequest(template *x509.CertificateRequest, pub *sm2.Public
 	}
 	tbsCSR.Raw = tbsCSRContents
 
+	// 与标准库比较，没有签名前对输入消息取哈希值的步骤，SM2内建了哈希预处理过程
 	var signature []byte
 	signature, err = sm2.Sign(pri, userId, tbsCSRContents)
 	if err != nil {
 		return
 	}
 
+	// 唯一的OID值SM3WithSM2
 	var sigAlgo pkix.AlgorithmIdentifier
 	sigAlgo.Algorithm = oidSignatureSM3WithSM2
 
@@ -242,6 +262,7 @@ func oidInExtensions(oid asn1.ObjectIdentifier, extensions []pkix.Extension) boo
 	return false
 }
 
+// PKIX 格式序列化公钥
 func marshalPublicKey(pub *sm2.PublicKey) (publicKeyBytes []byte, publicKeyAlgorithm pkix.AlgorithmIdentifier, err error) {
 	publicKeyBytes = pub.GetUnCompressBytes()
 
@@ -287,6 +308,8 @@ func ParseCertificateRequest(asn1Data []byte) (*x509.CertificateRequest, error) 
 	return parseCertificateRequest(&csr)
 }
 
+// parseCertificateRequest 返回解析后的符合x509规范的证书请求。
+// 区别在于签字算法字段、公钥算法字段，都用枚举变量中表示未知算法的"0"来代表
 func parseCertificateRequest(in *certificateRequest) (*x509.CertificateRequest, error) {
 	out := &x509.CertificateRequest{
 		Raw:                      in.Raw,
@@ -341,6 +364,7 @@ func parseCertificateRequest(in *certificateRequest) (*x509.CertificateRequest, 
 	return out, nil
 }
 
+// 直接按SM2公钥的各项配置解析，返回SM2公钥
 func parsePublicKey(keyData *publicKeyInfo) (interface{}, error) {
 	paramsData := keyData.Algorithm.Parameters.FullBytes
 	namedCurveOID := new(asn1.ObjectIdentifier)
