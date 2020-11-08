@@ -106,14 +106,14 @@ type sm2CipherC1C2C3 struct {
 
 // init 初始化国密SM2推荐参数计算得出的椭圆曲线。
 func init() {
-	initSm2P256V1()
+	initSM2P256V1()
 }
 
-// initSm2P256V1 为初始化国密SM2推荐参数计算得出的椭圆曲线:
+// initSM2P256V1 为初始化国密SM2推荐参数计算得出的椭圆曲线:
 // (1) 基域F(p)为素数域
 // (2) 一次元x的系数a=p-3, 所以曲线方程等价于 y^2 = x^3 - 3x^2 + b (mod p) (即符合FIPS186-3标准预设函数)
 // (3) 余因子h=1
-func initSm2P256V1() {
+func initSM2P256V1() {
 	sm2P, _ := new(big.Int).SetString("FFFFFFFEFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00000000FFFFFFFFFFFFFFFF", 16)
 	sm2A, _ := new(big.Int).SetString("FFFFFFFEFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00000000FFFFFFFFFFFFFFFC", 16)
 	sm2B, _ := new(big.Int).SetString("28E9FA9E9D9F5E344D5A9E4BCF6509A7F39789F515AB8F92DDBCBD414D940E93", 16)
@@ -130,9 +130,9 @@ func initSm2P256V1() {
 	sm2P256V1.BitSize = BitSize
 }
 
-// GetSm2P256V1 为获取国密SM2椭圆曲线定义的函数。
-func GetSm2P256V1() P256V1Curve {
-	initonce.Do(initSm2P256V1)
+// GetSM2P256V1 为获取国密SM2椭圆曲线定义的函数。
+func GetSM2P256V1() P256V1Curve {
+	initonce.Do(initSM2P256V1)
 	return sm2P256V1
 }
 

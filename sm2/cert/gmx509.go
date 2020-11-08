@@ -379,7 +379,7 @@ func parsePublicKey(keyData *publicKeyInfo) (interface{}, error) {
 		return nil, errors.New("x509: CurveOID is not the OID of SM2P256V1")
 	}
 
-	curve := sm2.GetSm2P256V1()
+	curve := sm2.GetSM2P256V1()
 	x, y := elliptic.Unmarshal(curve, keyData.PublicKey.RightAlign())
 	if x == nil || y == nil {
 		return nil, errors.New("x509: Unmarshal PublicKey failed")
