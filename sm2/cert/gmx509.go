@@ -1006,6 +1006,72 @@ type TBSCertificate tbsCertificate
 // just an empty SEQUENCE.
 var emptyASN1Subject = []byte{0x30, 0}
 
+// CreateCertificateBytes 为x509.CreateCertificate的国密改造版，返回序列化之后的字节数组形式的拟签字证书。
+func CreateCertificateBytes(template, parent *x509.Certificate, pub *sm2.PublicKey, priv *sm2.PrivateKey) (cert []byte, err error) {
+	if template.SerialNumber == nil {
+		return nil, errors.New("x509: no SerialNumber given")
+	}
+
+	publicKeyBytes, publicKeyAlgorithm, err := marshalPublicKey(pub)
+	if err != nil {
+		return nil, err
+	}
+
+	asn1Issuer, err := subjectBytes(parent)
+	if err != nil {
+		return nil, err
+	}
+
+	asn1Subject, err := subjectBytes(template)
+	if err != nil {
+		return nil, err
+	}
+
+	authorityKeyId := template.AuthorityKeyId
+	if !bytes.Equal(asn1Issuer, asn1Subject) && len(parent.SubjectKeyId) > 0 {
+		authorityKeyId = parent.SubjectKeyId
+	}
+
+	extensions, err := buildExtensions(template, bytes.Equal(asn1Subject, emptyASN1Subject), authorityKeyId)
+	if err != nil {
+		return nil, err
+	}
+
+	var sigAlgo pkix.AlgorithmIdentifier
+	sigAlgo.Algorithm = oidSignatureSM3WithSM2
+
+	encodedPublicKey := asn1.BitString{BitLength: len(publicKeyBytes) * 8, Bytes: publicKeyBytes}
+
+	c := TBSCertificate{
+		Version:            2,
+		SerialNumber:       template.SerialNumber,
+		SignatureAlgorithm: sigAlgo,
+		Issuer:             asn1.RawValue{FullBytes: asn1Issuer},
+		Validity:           validity{template.NotBefore.UTC(), template.NotAfter.UTC()},
+		Subject:            asn1.RawValue{FullBytes: asn1Subject},
+		PublicKey:          publicKeyInfo{nil, publicKeyAlgorithm, encodedPublicKey},
+		Extensions:         extensions,
+	}
+
+	tbsCertContents, err := asn1.Marshal(c)
+	if err != nil {
+		return nil, err
+	}
+	c.Raw = tbsCertContents
+
+	signature, err := sm2.Sign(priv, nil, c.Raw)
+	if err != nil {
+		return nil, err
+	}
+
+	return asn1.Marshal(certificate{
+		nil,
+		c,
+		sigAlgo,
+		asn1.BitString{Bytes: signature, BitLength: len(signature) * 8},
+	})
+}
+
 // 为什么要将构建CertificateInfo和签发证书分开呢?
 // 是因为实际应用中的CA密钥大多数都是放在加密卡/加密机中的，签名由加密卡/加密机来完成
 func CreateCertificateInfo(template, parent *x509.Certificate, csr *x509.CertificateRequest) (*TBSCertificate, error) {
