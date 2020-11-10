@@ -607,7 +607,7 @@ func getZ(digest hash.Hash, curve *P256V1Curve, pubX *big.Int, pubY *big.Int, us
 	return digest.Sum(nil)
 }
 
-// calculateE 为SM2签名算法的第2步预处理函数，即，以Z值和带签名消息为基础获取哈希值H:
+// calculateE 为SM2签名算法的第2步预处理函数，即，以Z值和待签名消息为基础获取哈希值H:
 // (1) 将第1步预处理获得的Z值写入SM3哈希函数
 // (2) 将拟签名消息M写入SM3哈希函数
 // (3) 获取哈希值H
