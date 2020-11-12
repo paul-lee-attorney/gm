@@ -1,13 +1,8 @@
-// Copyright 2011 The Go Authors. All rights reserved.
-// Use of this source code is governed by a BSD-style
-// license that can be found in the LICENSE file.
-
 package gmx509
 
 import (
 	"bytes"
 	"crypto"
-	"crypto/ed25519"
 	"crypto/x509"
 	"encoding/asn1"
 	"errors"
@@ -19,10 +14,8 @@ import (
 	"reflect"
 	"strings"
 	"time"
-	"unicode/utf8"
 
 	"github.com/paul-lee-attorney/gm/sm2"
-	"github.com/paul-lee-attorney/gm/sm3"
 )
 
 // ignoreCN disables interpreting Common Name as a hostname. See issue 24151.
@@ -166,130 +159,6 @@ func (ConstraintViolationError) Error() string {
 // involves algorithms that are not currently implemented.
 var ErrUnsupportedAlgorithm = errors.New("x509: cannot verify signature: algorithm unimplemented")
 
-// VerifyOptions contains parameters for Certificate.Verify. It's a structure
-// because other PKIX verification APIs have ended up needing many options.
-type VerifyOptions struct {
-	DNSName       string
-	Intermediates *CertPool
-	Roots         *CertPool // if nil, the system roots are used
-	CurrentTime   time.Time // if zero, the current time is used
-	// KeyUsage specifies which Extended Key Usage values are acceptable. A leaf
-	// certificate is accepted if it contains any of the listed values. An empty
-	// list means ExtKeyUsageServerAuth. To accept any key usage, include
-	// ExtKeyUsageAny.
-	//
-	// Certificate chains are required to nest these extended key usage values.
-	// (This matches the Windows CryptoAPI behavior, but not the spec.)
-	KeyUsages []ExtKeyUsage
-	// MaxConstraintComparisions is the maximum number of comparisons to
-	// perform when checking a given certificate's name constraints. If
-	// zero, a sensible default is used. This limit prevents pathological
-	// certificates from consuming excessive amounts of CPU time when
-	// validating.
-	MaxConstraintComparisions int
-}
-
-const (
-	leafCertificate = iota
-	intermediateCertificate
-	rootCertificate
-)
-
-var (
-	oidExtensionNameConstraints = []int{2, 5, 29, 30}
-	oidExtensionSubjectAltName  = []int{2, 5, 29, 17}
-)
-
-// oidNotInExtensions reports whether an extension with the given oid exists in
-// extensions.
-func oidInExtensions(oid asn1.ObjectIdentifier, extensions []pkix.Extension) bool {
-	for _, e := range extensions {
-		if e.Id.Equal(oid) {
-			return true
-		}
-	}
-	return false
-}
-
-func hasNameConstraints(c *x509.Certificate) bool {
-	return oidInExtensions(oidExtensionNameConstraints, c.Extensions)
-}
-
-func hasSANExtension(c *x509.Certificate) bool {
-	return oidInExtensions(oidExtensionSubjectAltName, c.Extensions)
-}
-
-func getSANExtension(c *x509.Certificate) []byte {
-	for _, e := range c.Extensions {
-		if e.Id.Equal(oidExtensionSubjectAltName) {
-			return e.Value
-		}
-	}
-	return nil
-}
-
-
-
-// CheckSignatureFrom verifies that the signature on c is a valid signature
-// from parent.
-func CheckSignatureFrom(c *x509.Certificate, parent *x509.Certificate) error {
-	// RFC 5280, 4.2.1.9:
-	// "If the basic constraints extension is not present in a version 3
-	// certificate, or the extension is present but the cA boolean is not
-	// asserted, then the certified public key MUST NOT be used to verify
-	// certificate signatures."
-	if parent.Version == 3 && !parent.BasicConstraintsValid ||
-		parent.BasicConstraintsValid && !parent.IsCA {
-		return ConstraintViolationError{}
-	}
-
-	if parent.KeyUsage != 0 && parent.KeyUsage&KeyUsageCertSign == 0 {
-		return ConstraintViolationError{}
-	}
-
-	if parent.PublicKeyAlgorithm != SM2 {
-		return errors.New("the publickey algorithm is not SM2")
-	}
-
-	// TODO(agl): don't ignore the path length constraint.
-
-	return CheckSignature(parent, c.SignatureAlgorithm, c.RawTBSCertificate, c.Signature)
-}
-
-// CheckSignature verifies that signature is a valid signature over signed from
-// c's public key.
-func CheckSignature(c *x509.Certificate, algo SignatureAlgorithm, signed, signature []byte) error {
-	return checkSignature(algo, signed, signature, c.PublicKey)
-}
-
-// CheckSignature verifies that signature is a valid signature over signed from
-// a crypto.PublicKey.
-func checkSignature(algo SignatureAlgorithm, signed, signature []byte, publicKey crypto.PublicKey) (err error) {
-
-	if algo != SM3WithSM2 {
-		return errors.New("the Signature Algorithm is not SM3WithSM2")
-	}
-
-	switch pub := publicKey.(type) {
-	case *sm2.PublicKey:
-		sm2Sig := new(sm2Signature)
-		if rest, err := asn1.Unmarshal(signature, sm2Sig); err != nil {
-			return err
-		} else if len(rest) != 0 {
-			return errors.New("x509: trailing data after SM2 signature")
-		}
-		if sm2Sig.R.Sign() <= 0 || sm2Sig.S.Sign() <= 0 {
-			return errors.New("x509: SM2 signature contained zero or negative values")
-		}
-		if !sm2.VerifyByRS(pub, nil, signed, sm2Sig.R, sm2Sig.S) {
-			return errors.New("x509: SM2 verification failure")
-		}
-		return
-	return ErrUnsupportedAlgorithm
-}
-
-//===================================================================
-
 // UnknownAuthorityError results when the certificate issuer is unknown
 type UnknownAuthorityError struct {
 	Cert *x509.Certificate
@@ -317,6 +186,113 @@ func (e UnknownAuthorityError) Error() string {
 	return s
 }
 
+// VerifyOptions contains parameters for Certificate.Verify. It's a structure
+// because other PKIX verification APIs have ended up needing many options.
+type VerifyOptions struct {
+	DNSName       string
+	Intermediates *CertPool
+	Roots         *CertPool // if nil, the system roots are used
+	CurrentTime   time.Time // if zero, the current time is used
+	// KeyUsage specifies which Extended Key Usage values are acceptable. A leaf
+	// certificate is accepted if it contains any of the listed values. An empty
+	// list means ExtKeyUsageServerAuth. To accept any key usage, include
+	// ExtKeyUsageAny.
+	//
+	// Certificate chains are required to nest these extended key usage values.
+	// (This matches the Windows CryptoAPI behavior, but not the spec.)
+	KeyUsages []x509.ExtKeyUsage
+	// MaxConstraintComparisions is the maximum number of comparisons to
+	// perform when checking a given certificate's name constraints. If
+	// zero, a sensible default is used. This limit prevents pathological
+	// certificates from consuming excessive amounts of CPU time when
+	// validating.
+	MaxConstraintComparisions int
+}
+
+const (
+	leafCertificate = iota
+	intermediateCertificate
+	rootCertificate
+)
+
+func hasNameConstraints(c *x509.Certificate) bool {
+	return oidInExtensions(oidExtensionNameConstraints, c.Extensions)
+}
+
+func hasSANExtension(c *x509.Certificate) bool {
+	return oidInExtensions(oidExtensionSubjectAltName, c.Extensions)
+}
+
+func getSANExtension(c *x509.Certificate) []byte {
+	for _, e := range c.Extensions {
+		if e.Id.Equal(oidExtensionSubjectAltName) {
+			return e.Value
+		}
+	}
+	return nil
+}
+
+// CheckSignatureFrom verifies that the signature on c is a valid signature
+// from parent.
+func CheckSignatureFrom(c *x509.Certificate, parent *x509.Certificate) error {
+	// RFC 5280, 4.2.1.9:
+	// "If the basic constraints extension is not present in a version 3
+	// certificate, or the extension is present but the cA boolean is not
+	// asserted, then the certified public key MUST NOT be used to verify
+	// certificate signatures."
+	if parent.Version == 3 && !parent.BasicConstraintsValid ||
+		parent.BasicConstraintsValid && !parent.IsCA {
+		return ConstraintViolationError{}
+	}
+
+	if parent.KeyUsage != 0 && parent.KeyUsage&x509.KeyUsageCertSign == 0 {
+		return ConstraintViolationError{}
+	}
+
+	if parent.PublicKeyAlgorithm != x509.UnknownPublicKeyAlgorithm {
+		return errors.New("the publickey algorithm is not SM2")
+	}
+
+	// TODO(agl): don't ignore the path length constraint.
+
+	return CheckSignature(parent, c.SignatureAlgorithm, c.RawTBSCertificate, c.Signature)
+}
+
+// CheckSignature verifies that signature is a valid signature over signed from
+// c's public key.
+func CheckSignature(c *x509.Certificate, algo x509.SignatureAlgorithm, signed, signature []byte) error {
+	return checkSignature(algo, signed, signature, c.PublicKey)
+}
+
+// CheckSignature verifies that signature is a valid signature over signed from
+// a crypto.PublicKey.
+func checkSignature(algo x509.SignatureAlgorithm, signed, signature []byte, publicKey crypto.PublicKey) (err error) {
+
+	if algo != x509.UnknownSignatureAlgorithm {
+		return errors.New("the Signature Algorithm is not SM3WithSM2")
+	}
+
+	switch pub := publicKey.(type) {
+	case *sm2.PublicKey:
+		sm2Sig := new(sm2Signature)
+		if rest, err := asn1.Unmarshal(signature, sm2Sig); err != nil {
+			return err
+		} else if len(rest) != 0 {
+			return errors.New("x509: trailing data after SM2 signature")
+		}
+		if sm2Sig.R.Sign() <= 0 || sm2Sig.S.Sign() <= 0 {
+			return errors.New("x509: SM2 signature contained zero or negative values")
+		}
+		if pass, err := sm2.VerifyByRS(pub, nil, signed, sm2Sig.R, sm2Sig.S); !pass || err != nil {
+			return errors.New("x509: SM2 verification failure")
+		}
+		return
+	}
+	return errors.New("the Public Key Algorithm is not SM2")
+}
+
+//===================================================================
+
 // // SystemRootsError results when we fail to load the system root certificates.
 // type SystemRootsError struct {
 // 	Err error
@@ -332,189 +308,7 @@ func (e UnknownAuthorityError) Error() string {
 
 // errNotParsed is returned when a certificate without ASN.1 contents is
 // verified. Platform-specific verification needs the ASN.1 contents.
-var errNotParsed = errors.New("x509: missing ASN.1 contents; use ParseCertificate")
-
-// rfc2821Mailbox represents a “mailbox” (which is an email address to most
-// people) by breaking it into the “local” (i.e. before the '@') and “domain”
-// parts.
-type rfc2821Mailbox struct {
-	local, domain string
-}
-
-// parseRFC2821Mailbox parses an email address into local and domain parts,
-// based on the ABNF for a “Mailbox” from RFC 2821. According to RFC 5280,
-// Section 4.2.1.6 that's correct for an rfc822Name from a certificate: “The
-// format of an rfc822Name is a "Mailbox" as defined in RFC 2821, Section 4.1.2”.
-func parseRFC2821Mailbox(in string) (mailbox rfc2821Mailbox, ok bool) {
-	if len(in) == 0 {
-		return mailbox, false
-	}
-
-	localPartBytes := make([]byte, 0, len(in)/2)
-
-	if in[0] == '"' {
-		// Quoted-string = DQUOTE *qcontent DQUOTE
-		// non-whitespace-control = %d1-8 / %d11 / %d12 / %d14-31 / %d127
-		// qcontent = qtext / quoted-pair
-		// qtext = non-whitespace-control /
-		//         %d33 / %d35-91 / %d93-126
-		// quoted-pair = ("\" text) / obs-qp
-		// text = %d1-9 / %d11 / %d12 / %d14-127 / obs-text
-		//
-		// (Names beginning with “obs-” are the obsolete syntax from RFC 2822,
-		// Section 4. Since it has been 16 years, we no longer accept that.)
-		in = in[1:]
-	QuotedString:
-		for {
-			if len(in) == 0 {
-				return mailbox, false
-			}
-			c := in[0]
-			in = in[1:]
-
-			switch {
-			case c == '"':
-				break QuotedString
-
-			case c == '\\':
-				// quoted-pair
-				if len(in) == 0 {
-					return mailbox, false
-				}
-				if in[0] == 11 ||
-					in[0] == 12 ||
-					(1 <= in[0] && in[0] <= 9) ||
-					(14 <= in[0] && in[0] <= 127) {
-					localPartBytes = append(localPartBytes, in[0])
-					in = in[1:]
-				} else {
-					return mailbox, false
-				}
-
-			case c == 11 ||
-				c == 12 ||
-				// Space (char 32) is not allowed based on the
-				// BNF, but RFC 3696 gives an example that
-				// assumes that it is. Several “verified”
-				// errata continue to argue about this point.
-				// We choose to accept it.
-				c == 32 ||
-				c == 33 ||
-				c == 127 ||
-				(1 <= c && c <= 8) ||
-				(14 <= c && c <= 31) ||
-				(35 <= c && c <= 91) ||
-				(93 <= c && c <= 126):
-				// qtext
-				localPartBytes = append(localPartBytes, c)
-
-			default:
-				return mailbox, false
-			}
-		}
-	} else {
-		// Atom ("." Atom)*
-	NextChar:
-		for len(in) > 0 {
-			// atext from RFC 2822, Section 3.2.4
-			c := in[0]
-
-			switch {
-			case c == '\\':
-				// Examples given in RFC 3696 suggest that
-				// escaped characters can appear outside of a
-				// quoted string. Several “verified” errata
-				// continue to argue the point. We choose to
-				// accept it.
-				in = in[1:]
-				if len(in) == 0 {
-					return mailbox, false
-				}
-				fallthrough
-
-			case ('0' <= c && c <= '9') ||
-				('a' <= c && c <= 'z') ||
-				('A' <= c && c <= 'Z') ||
-				c == '!' || c == '#' || c == '$' || c == '%' ||
-				c == '&' || c == '\'' || c == '*' || c == '+' ||
-				c == '-' || c == '/' || c == '=' || c == '?' ||
-				c == '^' || c == '_' || c == '`' || c == '{' ||
-				c == '|' || c == '}' || c == '~' || c == '.':
-				localPartBytes = append(localPartBytes, in[0])
-				in = in[1:]
-
-			default:
-				break NextChar
-			}
-		}
-
-		if len(localPartBytes) == 0 {
-			return mailbox, false
-		}
-
-		// From RFC 3696, Section 3:
-		// “period (".") may also appear, but may not be used to start
-		// or end the local part, nor may two or more consecutive
-		// periods appear.”
-		twoDots := []byte{'.', '.'}
-		if localPartBytes[0] == '.' ||
-			localPartBytes[len(localPartBytes)-1] == '.' ||
-			bytes.Contains(localPartBytes, twoDots) {
-			return mailbox, false
-		}
-	}
-
-	if len(in) == 0 || in[0] != '@' {
-		return mailbox, false
-	}
-	in = in[1:]
-
-	// The RFC species a format for domains, but that's known to be
-	// violated in practice so we accept that anything after an '@' is the
-	// domain part.
-	if _, ok := domainToReverseLabels(in); !ok {
-		return mailbox, false
-	}
-
-	mailbox.local = string(localPartBytes)
-	mailbox.domain = in
-	return mailbox, true
-}
-
-// domainToReverseLabels converts a textual domain name like foo.example.com to
-// the list of labels in reverse order, e.g. ["com", "example", "foo"].
-func domainToReverseLabels(domain string) (reverseLabels []string, ok bool) {
-	for len(domain) > 0 {
-		if i := strings.LastIndexByte(domain, '.'); i == -1 {
-			reverseLabels = append(reverseLabels, domain)
-			domain = ""
-		} else {
-			reverseLabels = append(reverseLabels, domain[i+1:])
-			domain = domain[:i]
-		}
-	}
-
-	if len(reverseLabels) > 0 && len(reverseLabels[0]) == 0 {
-		// An empty label at the end indicates an absolute value.
-		return nil, false
-	}
-
-	for _, label := range reverseLabels {
-		if len(label) == 0 {
-			// Empty labels are otherwise invalid.
-			return nil, false
-		}
-
-		for _, c := range label {
-			if c < 33 || c > 126 {
-				// Invalid character.
-				return nil, false
-			}
-		}
-	}
-
-	return reverseLabels, true
-}
+// var errNotParsed = errors.New("x509: missing ASN.1 contents; use ParseCertificate")
 
 func matchEmailConstraint(mailbox rfc2821Mailbox, constraint string) (bool, error) {
 	// If the constraint contains an @, then it specifies an exact mailbox
@@ -725,15 +519,15 @@ func isValid(c *x509.Certificate, certType int, currentChain []*x509.Certificate
 		leaf = currentChain[0]
 	}
 
-	checkNameConstraints := (certType == intermediateCertificate || certType == rootCertificate) && hasNameConstraints(c)
-	if checkNameConstraints && commonNameAsHostname(leaf) {
+	nameConstraints := (certType == intermediateCertificate || certType == rootCertificate) && hasNameConstraints(c)
+	if nameConstraints && commonNameAsHostname(leaf) {
 		// This is the deprecated, legacy case of depending on the commonName as
 		// a hostname. We don't enforce name constraints against the CN, but
 		// VerifyHostname will look for hostnames in there if there are no SANs.
 		// In order to ensure VerifyHostname will not accept an unchecked name,
 		// return an error here.
 		return CertificateInvalidError{c, NameConstraintsWithoutSANs, ""}
-	} else if checkNameConstraints && hasSANExtension(leaf) {
+	} else if nameConstraints && hasSANExtension(leaf) {
 		err := forEachSAN(getSANExtension(leaf), func(tag int, data []byte) error {
 			switch tag {
 			case nameTypeEmail:
@@ -770,7 +564,7 @@ func isValid(c *x509.Certificate, certType int, currentChain []*x509.Certificate
 					return fmt.Errorf("x509: internal error: URI SAN %q failed to parse", name)
 				}
 
-				if err := checkNameConstraints(c &comparisonCount, maxConstraintComparisons, "URI", name, uri,
+				if err := checkNameConstraints(c, &comparisonCount, maxConstraintComparisons, "URI", name, uri,
 					func(parsedName, constraint interface{}) (bool, error) {
 						return matchURIConstraint(parsedName.(*url.URL), constraint.(string))
 					}, c.PermittedURIDomains, c.ExcludedURIDomains); err != nil {
@@ -783,7 +577,7 @@ func isValid(c *x509.Certificate, certType int, currentChain []*x509.Certificate
 					return fmt.Errorf("x509: internal error: IP SAN %x failed to parse", data)
 				}
 
-				if err := checkNameConstraints(c &comparisonCount, maxConstraintComparisons, "IP address", ip.String(), ip,
+				if err := checkNameConstraints(c, &comparisonCount, maxConstraintComparisons, "IP address", ip.String(), ip,
 					func(parsedName, constraint interface{}) (bool, error) {
 						return matchIPConstraint(parsedName.(net.IP), constraint.(*net.IPNet))
 					}, c.PermittedIPRanges, c.ExcludedIPRanges); err != nil {
@@ -823,7 +617,6 @@ func isValid(c *x509.Certificate, certType int, currentChain []*x509.Certificate
 		return CertificateInvalidError{c, NotAuthorizedToSign, ""}
 	}
 
-	currentChain输入参数为nil, 因此，不会有返回值
 	if c.BasicConstraintsValid && c.MaxPathLen >= 0 {
 		numIntermediates := len(currentChain) - 1
 		if numIntermediates > c.MaxPathLen {
@@ -857,12 +650,12 @@ func Verify(c *x509.Certificate, opts VerifyOptions) (chains [][]*x509.Certifica
 	// Platform-specific verification needs the ASN.1 contents so
 	// this makes the behavior consistent across platforms.
 	if len(c.Raw) == 0 {
-		return nil, errNotParsed
+		return nil, errors.New("x509: missing ASN.1 contents; use ParseCertificate")
 	}
 	if opts.Intermediates != nil {
 		for _, intermediate := range opts.Intermediates.certs {
 			if len(intermediate.Raw) == 0 {
-				return nil, errNotParsed
+				return nil, errors.New("x509: missing ASN.1 contents; use ParseCertificate")
 			}
 		}
 	}
@@ -910,12 +703,12 @@ func Verify(c *x509.Certificate, opts VerifyOptions) (chains [][]*x509.Certifica
 
 	keyUsages := opts.KeyUsages
 	if len(keyUsages) == 0 {
-		keyUsages = []ExtKeyUsage{ExtKeyUsageServerAuth}
+		keyUsages = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
 	}
 
 	// If any key usage is acceptable then we're done.
 	for _, usage := range keyUsages {
-		if usage == ExtKeyUsageAny {
+		if usage == x509.ExtKeyUsageAny {
 			return candidateChains, nil
 		}
 	}
@@ -933,7 +726,7 @@ func Verify(c *x509.Certificate, opts VerifyOptions) (chains [][]*x509.Certifica
 	return chains, nil
 }
 
-func appendToFreshChain(chain []*x509.Certificate, cert *x509.Certificate) []*Certificate {
+func appendToFreshChain(chain []*x509.Certificate, cert *x509.Certificate) []*x509.Certificate {
 	n := make([]*x509.Certificate, len(chain)+1)
 	copy(n, chain)
 	n[len(chain)] = cert
@@ -1072,29 +865,8 @@ func commonNameAsHostname(c *x509.Certificate) bool {
 	return !ignoreCN && !hasSANExtension(c) && validHostname(c.Subject.CommonName)
 }
 
-// ExtKeyUsage represents an extended set of actions that are valid for a given key.
-// Each of the ExtKeyUsage* constants define a unique action.
-type ExtKeyUsage int
-
-const (
-	ExtKeyUsageAny ExtKeyUsage = iota
-	ExtKeyUsageServerAuth
-	ExtKeyUsageClientAuth
-	ExtKeyUsageCodeSigning
-	ExtKeyUsageEmailProtection
-	ExtKeyUsageIPSECEndSystem
-	ExtKeyUsageIPSECTunnel
-	ExtKeyUsageIPSECUser
-	ExtKeyUsageTimeStamping
-	ExtKeyUsageOCSPSigning
-	ExtKeyUsageMicrosoftServerGatedCrypto
-	ExtKeyUsageNetscapeServerGatedCrypto
-	ExtKeyUsageMicrosoftCommercialCodeSigning
-	ExtKeyUsageMicrosoftKernelCodeSigning
-)
-
-func checkChainForKeyUsage(chain []*x509.Certificate, keyUsages []ExtKeyUsage) bool {
-	usages := make([]ExtKeyUsage, len(keyUsages))
+func checkChainForKeyUsage(chain []*x509.Certificate, keyUsages []x509.ExtKeyUsage) bool {
+	usages := make([]x509.ExtKeyUsage, len(keyUsages))
 	copy(usages, keyUsages)
 
 	if len(chain) == 0 {
@@ -1116,13 +888,13 @@ NextCert:
 		}
 
 		for _, usage := range cert.ExtKeyUsage {
-			if usage == ExtKeyUsageAny {
+			if usage == x509.ExtKeyUsageAny {
 				// The certificate is explicitly good for any usage.
 				continue NextCert
 			}
 		}
 
-		const invalidUsage ExtKeyUsage = -1
+		const invalidUsage x509.ExtKeyUsage = -1
 
 	NextRequestedUsage:
 		for i, requestedUsage := range usages {
@@ -1133,9 +905,9 @@ NextCert:
 			for _, usage := range cert.ExtKeyUsage {
 				if requestedUsage == usage {
 					continue NextRequestedUsage
-				} else if requestedUsage == ExtKeyUsageServerAuth &&
-					(usage == ExtKeyUsageNetscapeServerGatedCrypto ||
-						usage == ExtKeyUsageMicrosoftServerGatedCrypto) {
+				} else if requestedUsage == x509.ExtKeyUsageServerAuth &&
+					(usage == x509.ExtKeyUsageNetscapeServerGatedCrypto ||
+						usage == x509.ExtKeyUsageMicrosoftServerGatedCrypto) {
 					// In order to support COMODO
 					// certificate chains, we have to
 					// accept Netscape or Microsoft SGC

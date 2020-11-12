@@ -27,7 +27,7 @@ func TestX500Name(t *testing.T) {
 }
 
 func TestCreateCertificateRequest(t *testing.T) {
-	pri, pub, err := sm2.GenerateKey(rand.Reader)
+	pri, err := sm2.GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -53,6 +53,8 @@ func TestCreateCertificateRequest(t *testing.T) {
 			},
 		},
 	}
+
+	pub := &pri.PublicKey
 
 	derBytes, err := CreateCertificateRequest(&template, pub, pri, nil)
 	if err != nil {
@@ -79,7 +81,7 @@ func TestCreateCertificateRequest(t *testing.T) {
 }
 
 func TestCreateCertificate(t *testing.T) {
-	pri, pub, err := sm2.GenerateKey(rand.Reader)
+	pri, err := sm2.GenerateKey(rand.Reader)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -106,6 +108,7 @@ func TestCreateCertificate(t *testing.T) {
 		},
 	}
 
+	pub := &pri.PublicKey
 	derBytes, err := CreateCertificateRequest(&template, pub, pri, nil)
 	if err != nil {
 		t.Fatal(err)

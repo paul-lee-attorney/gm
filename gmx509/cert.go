@@ -318,9 +318,9 @@ func parseCertificateRequest(in *certificateRequest) (*x509.CertificateRequest, 
 		RawSubject:               in.TBSCSR.Subject.FullBytes,
 
 		Signature:          in.SignatureValue.RightAlign(),
-		SignatureAlgorithm: SM2WithSM3, //与x509.go里的实现不一样，因为这里都是固定了使用SM3WithSM2
+		SignatureAlgorithm: x509.UnknownSignatureAlgorithm, //与x509.go里的实现不一样，因为这里都是固定了使用SM3WithSM2
 
-		PublicKeyAlgorithm: SM2, //与x509.go里的实现不一样，因为这里都是固定了使用EC公钥
+		PublicKeyAlgorithm: x509.UnknownPublicKeyAlgorithm, //与x509.go里的实现不一样，因为这里都是固定了使用EC公钥
 
 		Version:    in.TBSCSR.Version,
 		Attributes: parseRawAttributes(in.TBSCSR.RawAttributes),
@@ -556,10 +556,10 @@ func VerifyDERCSRSign(asn1Data []byte, userId []byte) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return VerifyCSRSign(csr, userId), nil
+	return VerifyCSRSign(csr, userId)
 }
 
-func VerifyCSRSign(csr *x509.CertificateRequest, userId []byte) bool {
+func VerifyCSRSign(csr *x509.CertificateRequest, userId []byte) (bool, error) {
 	pub := csr.PublicKey.(*sm2.PublicKey)
 	return sm2.Verify(pub, userId, csr.RawTBSCertificateRequest, csr.Signature)
 }
@@ -1169,8 +1169,8 @@ func parseCertificate(in *certificate) (*x509.Certificate, error) {
 	out.RawIssuer = in.TBSCertificate.Issuer.FullBytes
 
 	out.Signature = in.SignatureValue.RightAlign()
-	out.SignatureAlgorithm = SM3WithSM2
-	out.PublicKeyAlgorithm = SM2
+	out.SignatureAlgorithm = x509.UnknownSignatureAlgorithm
+	out.PublicKeyAlgorithm = x509.UnknownPublicKeyAlgorithm
 
 	if !oidSignatureSM3WithSM2.Equal(in.SignatureAlgorithm.Algorithm) {
 		return nil, errors.New("x509: illegal signature algorithm OID")
