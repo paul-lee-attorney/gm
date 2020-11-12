@@ -1,4 +1,4 @@
-package cert
+package gmx509
 
 import (
 	"bytes"

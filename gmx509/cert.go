@@ -1,4 +1,4 @@
-package cert
+package gmx509
 
 import (
 	"bytes"
@@ -318,9 +318,9 @@ func parseCertificateRequest(in *certificateRequest) (*x509.CertificateRequest, 
 		RawSubject:               in.TBSCSR.Subject.FullBytes,
 
 		Signature:          in.SignatureValue.RightAlign(),
-		SignatureAlgorithm: 0, //与x509.go里的实现不一样，因为这里都是固定了使用SM3WithSM2
+		SignatureAlgorithm: SM2WithSM3, //与x509.go里的实现不一样，因为这里都是固定了使用SM3WithSM2
 
-		PublicKeyAlgorithm: 0, //与x509.go里的实现不一样，因为这里都是固定了使用EC公钥
+		PublicKeyAlgorithm: SM2, //与x509.go里的实现不一样，因为这里都是固定了使用EC公钥
 
 		Version:    in.TBSCSR.Version,
 		Attributes: parseRawAttributes(in.TBSCSR.RawAttributes),
@@ -1169,8 +1169,8 @@ func parseCertificate(in *certificate) (*x509.Certificate, error) {
 	out.RawIssuer = in.TBSCertificate.Issuer.FullBytes
 
 	out.Signature = in.SignatureValue.RightAlign()
-	out.SignatureAlgorithm = 0
-	out.PublicKeyAlgorithm = 0
+	out.SignatureAlgorithm = SM3WithSM2
+	out.PublicKeyAlgorithm = SM2
 
 	if !oidSignatureSM3WithSM2.Equal(in.SignatureAlgorithm.Algorithm) {
 		return nil, errors.New("x509: illegal signature algorithm OID")
