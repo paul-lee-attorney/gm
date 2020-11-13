@@ -24,9 +24,13 @@ import (
 )
 
 var (
-	// SM2算法oid，详见GMT 0015-2012 附件
-	oidSM2P256V1 = asn1.ObjectIdentifier{1, 2, 156, 10197, 1, 301}
-	// SM3WithSM2Encryption 详见GMT 0015-2012 附件
+	// SM2算法相关oid，详见GMT 0010-2012。
+	// SM2推荐曲线的oid暂时设定为301.5
+	// SM2公钥签名算法的oid为301.1
+	oidSM2P256V1       = asn1.ObjectIdentifier{1, 2, 156, 10197, 1, 301, 5}
+	oidPublicKeySM2DSA = asn1.ObjectIdentifier{1, 2, 156, 10197, 1, 301, 1}
+
+	// SM3WithSM2Encryption 详见GMT 0010-2012 附件
 	oidSignatureSM3WithSM2 = asn1.ObjectIdentifier{1, 2, 156, 10197, 1, 501}
 
 	oidPublicKeyECDSA = asn1.ObjectIdentifier{1, 2, 840, 10045, 2, 1}
@@ -266,7 +270,7 @@ func oidInExtensions(oid asn1.ObjectIdentifier, extensions []pkix.Extension) boo
 func marshalPublicKey(pub *sm2.PublicKey) (publicKeyBytes []byte, publicKeyAlgorithm pkix.AlgorithmIdentifier, err error) {
 	publicKeyBytes = pub.GetUnCompressBytes()
 
-	publicKeyAlgorithm.Algorithm = oidPublicKeyECDSA
+	publicKeyAlgorithm.Algorithm = oidPublicKeySM2DSA
 	var paramBytes []byte
 	paramBytes, err = asn1.Marshal(oidSM2P256V1)
 	publicKeyAlgorithm.Parameters.FullBytes = paramBytes
@@ -329,7 +333,7 @@ func parseCertificateRequest(in *certificateRequest) (*x509.CertificateRequest, 
 	if !oidSignatureSM3WithSM2.Equal(in.SignatureAlgorithm.Algorithm) {
 		return nil, errors.New("x509: illegal signature algorithm OID")
 	}
-	if !oidPublicKeyECDSA.Equal(in.TBSCSR.PublicKey.Algorithm.Algorithm) {
+	if !oidPublicKeySM2DSA.Equal(in.TBSCSR.PublicKey.Algorithm.Algorithm) {
 		return nil, errors.New("x509: illegal publick key algorithm OID")
 	}
 
@@ -1175,7 +1179,7 @@ func parseCertificate(in *certificate) (*x509.Certificate, error) {
 	if !oidSignatureSM3WithSM2.Equal(in.SignatureAlgorithm.Algorithm) {
 		return nil, errors.New("x509: illegal signature algorithm OID")
 	}
-	if !oidPublicKeyECDSA.Equal(in.TBSCertificate.PublicKey.Algorithm.Algorithm) {
+	if !oidPublicKeySM2DSA.Equal(in.TBSCertificate.PublicKey.Algorithm.Algorithm) {
 		return nil, errors.New("x509: illegal publick key algorithm OID")
 	}
 
