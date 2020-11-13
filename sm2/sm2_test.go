@@ -9,8 +9,8 @@ import (
 	"testing"
 )
 
-func TestGetSm2P256V1(t *testing.T) {
-	curve := GetSm2P256V1()
+func TestGetSM2P256V1(t *testing.T) {
+	curve := GetSM2P256V1()
 	fmt.Printf("P:%s\n", curve.Params().P.Text(16))
 	fmt.Printf("B:%s\n", curve.Params().B.Text(16))
 	fmt.Printf("N:%s\n", curve.Params().N.Text(16))
@@ -28,7 +28,7 @@ func TestGenerateKey(t *testing.T) {
 	fmt.Printf("x:%s\n", pub.X.Text(16))
 	fmt.Printf("y:%s\n", pub.Y.Text(16))
 
-	curve := GetSm2P256V1()
+	curve := GetSM2P256V1()
 	if !curve.IsOnCurve(pub.X, pub.Y) {
 		t.Error("x,y is not on Curve")
 		return
@@ -211,7 +211,7 @@ var testSignData = []testSm2SignData{
 func TestSign(t *testing.T) {
 	for _, data := range testSignData {
 		priv := new(PrivateKey)
-		priv.Curve = GetSm2P256V1()
+		priv.Curve = GetSM2P256V1()
 		dBytes, _ := hex.DecodeString(data.d)
 		priv.D = new(big.Int).SetBytes(dBytes)
 		inBytes, _ := hex.DecodeString(data.in)
@@ -223,7 +223,7 @@ func TestSign(t *testing.T) {
 		fmt.Printf("sign:%s\n", hex.EncodeToString(sign))
 
 		pub := new(PublicKey)
-		pub.Curve = GetSm2P256V1()
+		pub.Curve = GetSM2P256V1()
 		xBytes, _ := hex.DecodeString(data.x)
 		yBytes, _ := hex.DecodeString(data.y)
 		pub.X = new(big.Int).SetBytes(xBytes)
@@ -239,7 +239,7 @@ func TestSign(t *testing.T) {
 func TestVerify(t *testing.T) {
 	for _, data := range testSignData {
 		pub := new(PublicKey)
-		pub.Curve = GetSm2P256V1()
+		pub.Curve = GetSM2P256V1()
 		xBytes, _ := hex.DecodeString(data.x)
 		yBytes, _ := hex.DecodeString(data.y)
 		pub.X = new(big.Int).SetBytes(xBytes)
