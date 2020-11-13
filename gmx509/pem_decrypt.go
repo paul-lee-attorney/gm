@@ -298,10 +298,10 @@ func PemToSM2PublicKey(raw []byte, pwd []byte) (interface{}, error) {
 	return cert, err
 }
 
-// Sm2PublicKeyToPEM marshals a public key to the pem format
-func Sm2PublicKeyToPEM(publicKey interface{}, pwd []byte) ([]byte, error) {
+// SM2PublicKeyToPEM marshals a public key to the pem format
+func SM2PublicKeyToPEM(publicKey interface{}, pwd []byte) ([]byte, error) {
 	if len(pwd) != 0 {
-		return Sm2PublicKeyToEncryptedPEM(publicKey, pwd)
+		return SM2PublicKeyToEncryptedPEM(publicKey, pwd)
 	}
 
 	if publicKey == nil {
@@ -327,12 +327,12 @@ func Sm2PublicKeyToPEM(publicKey interface{}, pwd []byte) ([]byte, error) {
 		), nil
 
 	default:
-		return nil, errors.New("Invalid key type. It must be *ecdsa.PublicKey")
+		return nil, errors.New("Invalid key type. It must be *sm2.PublicKey")
 	}
 }
 
-// Sm2PublicKeyToEncryptedPEM converts a public key to encrypted pem
-func Sm2PublicKeyToEncryptedPEM(publicKey interface{}, pwd []byte) ([]byte, error) {
+// SM2PublicKeyToEncryptedPEM converts a public key to encrypted pem
+func SM2PublicKeyToEncryptedPEM(publicKey interface{}, pwd []byte) ([]byte, error) {
 	if publicKey == nil {
 		return nil, errors.New("Invalid public key. It must be different from nil")
 	}
