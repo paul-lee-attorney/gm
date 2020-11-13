@@ -25,8 +25,8 @@ import (
 
 var (
 	// SM2算法相关oid，详见GMT 0010-2012。
-	// SM2推荐曲线的oid暂时设定为301.5
-	// SM2公钥签名算法的oid为301.1
+	// SM2推荐曲线的oid暂定为301.5, 代表SM2国家标准第5部分推荐曲线
+	// SM2公钥签名算法的oid为301.1, 符合GMT 0010-2012对签名算法定义的OID
 	oidSM2P256V1       = asn1.ObjectIdentifier{1, 2, 156, 10197, 1, 301, 5}
 	oidPublicKeySM2DSA = asn1.ObjectIdentifier{1, 2, 156, 10197, 1, 301, 1}
 
