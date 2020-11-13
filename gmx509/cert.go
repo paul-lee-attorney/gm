@@ -60,13 +60,6 @@ const (
 )
 
 // 与x509标准库相同
-type publicKeyInfo struct {
-	Raw       asn1.RawContent
-	Algorithm pkix.AlgorithmIdentifier
-	PublicKey asn1.BitString
-}
-
-// 与x509标准库相同
 type tbsCertificateRequest struct {
 	Raw           asn1.RawContent
 	Version       int
