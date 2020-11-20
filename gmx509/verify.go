@@ -28,40 +28,6 @@ type sm2Signature struct {
 	R, S *big.Int
 }
 
-type PublicKeyAlgorithm int
-
-const (
-	UnknownPublicKeyAlgorithm PublicKeyAlgorithm = iota
-	RSA
-	DSA
-	ECDSA
-	Ed25519
-	SM2
-)
-
-type SignatureAlgorithm int
-
-const (
-	UnknownSignatureAlgorithm SignatureAlgorithm = iota
-	MD2WithRSA
-	MD5WithRSA
-	SHA1WithRSA
-	SHA256WithRSA
-	SHA384WithRSA
-	SHA512WithRSA
-	DSAWithSHA1
-	DSAWithSHA256
-	ECDSAWithSHA1
-	ECDSAWithSHA256
-	ECDSAWithSHA384
-	ECDSAWithSHA512
-	SHA256WithRSAPSS
-	SHA384WithRSAPSS
-	SHA512WithRSAPSS
-	PureEd25519
-	SM3WithSM2
-)
-
 type InvalidReason int
 
 const (
@@ -249,9 +215,14 @@ func CheckSignatureFrom(c *x509.Certificate, parent *x509.Certificate) error {
 		return ConstraintViolationError{}
 	}
 
-	if parent.PublicKeyAlgorithm != x509.UnknownPublicKeyAlgorithm {
-		return errors.New("the publickey algorithm is not SM2")
+	// 验证母证书的签名算法和公钥算法
+	if err := checkCertAlgo(parent); err != nil {
+		return err
 	}
+
+	// if parent.PublicKeyAlgorithm != x509.UnknownPublicKeyAlgorithm {
+	// 	return errors.New("the publickey algorithm is not SM2")
+	// }
 
 	// TODO(agl): don't ignore the path length constraint.
 
@@ -261,16 +232,51 @@ func CheckSignatureFrom(c *x509.Certificate, parent *x509.Certificate) error {
 // CheckSignature verifies that signature is a valid signature over signed from
 // c's public key.
 func CheckSignature(c *x509.Certificate, algo x509.SignatureAlgorithm, signed, signature []byte) error {
+	// 验证母证书的签名算法和公钥算法
+	if err := checkCertAlgo(c); err != nil {
+		return err
+	}
+
+	// 验证子证书的签名算法和公钥算法
+	if err := checkRawTBSCertAlgo(signed); err != nil {
+		return err
+	}
 	return checkSignature(algo, signed, signature, c.PublicKey)
+}
+
+// checkAlgo 解析x509.Certificate后核验证书签字算法和公钥签字算法, 返回nil为通过
+func checkCertAlgo(c *x509.Certificate) error {
+	return checkRawTBSCertAlgo(c.RawTBSCertificate)
+}
+
+// checkRawTBSCertAlgo 核验RAW格式TBS证书的算法
+func checkRawTBSCertAlgo(raw []byte) error {
+	var tbsCert TBSCertificate
+
+	rest, err := asn1.Unmarshal(raw, &tbsCert)
+	if err != nil {
+		return errors.New("failed to unmarshal tbsCertificate from x509.Certificate")
+	} else if len(rest) > 0 {
+		return errors.New("trailing data left after unmarshal x509.Certificate")
+	}
+
+	if !oidSignatureSM3WithSM2.Equal(tbsCert.SignatureAlgorithm.Algorithm) {
+		return errors.New("x509: signature algorithm is not SM3WithSM2")
+	}
+
+	if !oidPublicKeySM2DSA.Equal(tbsCert.PublicKey.Algorithm.Algorithm) {
+		return errors.New("x509: publick key algorithm is not SM2")
+	}
+	return nil
 }
 
 // CheckSignature verifies that signature is a valid signature over signed from
 // a crypto.PublicKey.
 func checkSignature(algo x509.SignatureAlgorithm, signed, signature []byte, publicKey crypto.PublicKey) (err error) {
 
-	if algo != x509.UnknownSignatureAlgorithm {
-		return errors.New("the Signature Algorithm is not SM3WithSM2")
-	}
+	// if algo != x509.UnknownSignatureAlgorithm {
+	// 	return errors.New("the Signature Algorithm is not SM3WithSM2")
+	// }
 
 	switch pub := publicKey.(type) {
 	case *sm2.PublicKey:

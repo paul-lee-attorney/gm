@@ -7,6 +7,7 @@ package sm2
 
 import (
 	"bytes"
+	"crypto"
 	"crypto/elliptic"
 	"crypto/rand"
 	"encoding/asn1"
@@ -218,6 +219,23 @@ func (pub *PublicKey) GetUnCompressBytes() []byte {
 func (pub *PublicKey) GetRawBytes() []byte {
 	raw := pub.GetUnCompressBytes()
 	return raw[1:]
+}
+
+// Public 返回私钥对应的公钥，实现crypto.Signer
+func (pri *PrivateKey) Public() crypto.PublicKey {
+
+	return pri.PublicKey
+}
+
+// Sign 返回输入消息的签名，实现crypto.Signer接口
+func (pri *PrivateKey) Sign(rand io.Reader, in []byte, opts crypto.SignerOpts) ([]byte, error) {
+
+	r, s, err := SignToRS(pri, nil, in)
+	if err != nil {
+		return nil, err
+	}
+
+	return MarshalSign(r, s)
 }
 
 // GetRawBytes 为获得字节数组格式存储的私钥的方法。
